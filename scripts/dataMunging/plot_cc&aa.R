@@ -1,46 +1,77 @@
-library(png)
-library(ggplot2)
-library(cowplot)
-library(dplyr)
+library(rnaturalearth)
 
-# path to accessible area pngs
-path_aa <- list.files(path = "g:/UF3/Ode_SDMs/ModelResultsNA/ModelResults/", 
-                      pattern = "*occs.png",
-                      recursive = T, full.names = T)
+source("scripts/pipelineFunctions/02_clean_occurrences.R")
+source("scripts/pipelineFunctions/03_define_accessibleArea.R")
 
-# path to response curves
-path_rc <- list.files(path = "g:/UF3/Ode_SDMs/ModelResultsNA/ModelResults/", 
-                      pattern = "*Curves.png",
-                      recursive = T,full.names = T)
+dir.create("CoordinateCleaningResults")
+dir.create("CoordinateCleaningResults/NA")
 
+nonCleanedOccs <- data.table::fread("Occ_Data/OC_All_Records_2020-10-16.csv", 
+                                    select = c("scientific_name", "decimalLongitude", "decimalLatitude")) %>% 
+  mutate(validName = scientific_name)
 
-# path to all pngs
-path_all <- list.files(path = "g:/UF3/Ode_SDMs/ModelResultsNA/ModelResults/", 
-                      pattern = "*.png",
-                      recursive = T,full.names = T)
+world <- rnaturalearth::ne_countries(returnclass = "sf")
 
-# paths to only cc
-path_notrc <- path_all[!path_all %in% path_rc]
-path_cc <- path_notrc[!path_notrc %in% path_aa]
-
-
-# sppecies list
-test_spp <- read.csv("NA_SDM_testSpp.csv")
-
-# function to plot pngs together
-
-for(i in 1:length(test_spp$binomial)){
+makemaps <- function(binomial){
   
-  png1 <- readPNG(path_aa[i])
-  png2 <- readPNG(path_cc[i])
+  spdf <- filter(nonCleanedOccs, scientific_name == binomial)
   
-  p1 <- ggdraw() + draw_image(png1)
-  p2 <- ggdraw() + draw_image(png2)
+  cc <- coord_clean(species = binomial, df = nonCleanedOccs)
   
-  cp <- cowplot::plot_grid(p2,p1, ncol = 1, nrow =2, rel_heights = c(1,1.5))
-
-  ggsave(filename = paste("g:/UF3/Ode_SDMs/Occurrrence_PNGs", "/", test_spp$binomial[i], "_cc.png",
-                sep = ""), plot = cp,
-         width = 5, height = 7)
-
+  p1 <- ggplot() +
+    geom_sf(world, mapping = aes()) +
+    geom_point(spdf, mapping = aes(x = decimalLongitude, y = decimalLatitude),
+               color = "purple")  +
+    coord_sf(xlim = c(min(spdf$decimalLongitude) - 10, max(spdf$decimalLongitude) + 10),
+             ylim = c(min(spdf$decimalLatitude) - 10, max(spdf$decimalLatitude) + 10)) +
+    ggtitle("Uncleaned") +
+    theme_bw()
+  
+  p2 <- ggplot() +
+    geom_sf(world, mapping = aes()) +
+    geom_point(cc, mapping = aes(x = decimalLongitude, y = decimalLatitude),
+               color = "purple")  +
+    coord_sf(xlim = c(min(cc$decimalLongitude) - 10, max(cc$decimalLongitude) + 10),
+             ylim = c(min(cc$decimalLatitude) - 10, max(cc$decimalLatitude) + 10)) +
+    ggtitle("Cleaned") +
+    theme_bw()
+  
+  aa_shp <- define_accessibleArea(species_df = cc, minBuff = 75000,
+                                  saveImage = FALSE,
+                                  saveShapefile = FALSE)
+  
+  p3 <- ggplot() + 
+    geom_sf(world, mapping = aes(), fill = NA) +
+    geom_sf(st_as_sf(aa_shp), mapping = aes(), fill = "Orange") +
+    geom_point(spdf, mapping = aes(x = decimalLongitude, y = decimalLatitude),
+               color = "black")  +
+    coord_sf(xlim = c(min(cc$decimalLongitude) - 10, max(cc$decimalLongitude) + 10),
+             ylim = c(min(cc$decimalLatitude) - 10, max(cc$decimalLatitude) + 10)) +
+    ggtitle(binomial) +
+    theme_classic()
+  
+  cp <- cowplot::plot_grid(p1, p2, p3, rel_heights = c(1,1,3), rel_widths = c(1,1,3))
+  
+  return(cp)
+  
 }
+
+test <- makemaps("Aeshna septentrionalis")
+test
+
+spp_list <- read.csv("NA_SDM_testSpp.csv") %>% 
+  dplyr::rename(scientific_name = 1) %>% 
+  dplyr::filter(!is.na(scientific_name))
+
+# Error at 16. Why?
+
+for(i in 16:length(spp_list$scientific_name)){
+  
+  a <- makemaps(binomial = spp_list$scientific_name[i])
+  
+  ggsave(filename = paste("CoordinateCleaningResults/NA/", 
+                          spp_list$scientific_name[i], ".png", sep = ""),
+         plot = a)
+         
+}
+
