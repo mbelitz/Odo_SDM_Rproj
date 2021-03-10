@@ -7,14 +7,19 @@ dir.create("CoordinateCleaningResults")
 dir.create("CoordinateCleaningResults/NA")
 
 nonCleanedOccs <- data.table::fread("Occ_Data/OC_All_Records_2020-10-16.csv", 
-                                    select = c("scientific_name", "decimalLongitude", "decimalLatitude")) %>% 
-  mutate(validName = scientific_name)
+                                    select = c("scientific_name", 
+                                               "decimalLongitude", 
+                                               "decimalLatitude",
+                                               "status")) %>% 
+  mutate(validName = scientific_name) %>% 
+  filter(status == "Accepted")
 
 world <- rnaturalearth::ne_countries(returnclass = "sf")
 
 makemaps <- function(binomial){
   
-  spdf <- filter(nonCleanedOccs, scientific_name == binomial)
+  spdf <- nonCleanedOccs %>% 
+    filter(scientific_name == binomial)
   
   cc <- coord_clean(species = binomial, df = nonCleanedOccs)
   
@@ -36,14 +41,14 @@ makemaps <- function(binomial){
     ggtitle("Cleaned") +
     theme_bw()
   
-  aa_shp <- define_accessibleArea(species_df = cc, minBuff = 75000,
+  aa_shp <- define_accessibleArea(species_df = cc, minBuff = 100000,
                                   saveImage = FALSE,
                                   saveShapefile = FALSE)
   
   p3 <- ggplot() + 
     geom_sf(world, mapping = aes(), fill = NA) +
     geom_sf(st_as_sf(aa_shp), mapping = aes(), fill = "Orange") +
-    geom_point(spdf, mapping = aes(x = decimalLongitude, y = decimalLatitude),
+    geom_point(cc, mapping = aes(x = decimalLongitude, y = decimalLatitude),
                color = "black")  +
     coord_sf(xlim = c(min(cc$decimalLongitude) - 10, max(cc$decimalLongitude) + 10),
              ylim = c(min(cc$decimalLatitude) - 10, max(cc$decimalLatitude) + 10)) +
@@ -61,11 +66,13 @@ test
 
 spp_list <- read.csv("NA_SDM_testSpp.csv") %>% 
   dplyr::rename(scientific_name = 1) %>% 
-  dplyr::filter(!is.na(scientific_name))
+  dplyr::filter(!is.na(scientific_name)) 
+
+spp_list <- dplyr::filter(spp_list, scientific_name != "Epiaeschna heros")
 
 # Error at 16. Why?
 
-for(i in 16:length(spp_list$scientific_name)){
+for(i in 1:length(spp_list$scientific_name)){
   
   a <- makemaps(binomial = spp_list$scientific_name[i])
   
