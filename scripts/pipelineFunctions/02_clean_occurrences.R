@@ -67,7 +67,7 @@ coord_clean <- function(species, df,
                                                       mltpl = 10)}
   
   if(saveocc == TRUE){
-    if(nrow(cs3) > 10){
+    if(nrow(cs3) > 3){
       write.csv(x = cs3, file = paste(occdir, species, ".csv", sep = ""), 
                 row.names = FALSE)
     } else{
@@ -101,7 +101,7 @@ coord_clean <- function(species, df,
   
   
   if(saveimage == TRUE){  
-    if(nrow(cs3) > 10){
+    if(nrow(cs3) > 3){
       ggsave(filename = paste(imagedir, species, "_occs", ".png", sep = ""),
              plot = cp)
     } else{
