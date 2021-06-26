@@ -11,9 +11,14 @@ remove_singleVariables <- function(pred_vars, maxent_mod, th){
   #calculate vifs of predictor variables
   pVIF <- usdm::vif(pred_vars)
   #calculate variable importance of maxent models
-  vIMP <- ENMeval::var.importance(maxent_mod)
+  m_results <- as.data.frame(as.table(maxent_mod@results)) %>% 
+    dplyr::rename(variables = 1, rem = 2, permutation.importance = 3) %>% 
+    dplyr::select(variables, permutation.importance)
+  vIMP <- m_results %>% 
+    filter(str_detect(variables, '.permutation.importance')) %>% 
+    mutate(Variables = stringr::word(variables,  sep = fixed(".")))
   #join var importance with vifs
-  jdf <- left_join(pVIF, vIMP, by = c("Variables" = "variable"))
+  jdf <- left_join(pVIF, vIMP)
   # select the variables with the highest VIFs and select least important variable
   # based on permutation importance
   lowVar <- jdf %>% 
@@ -37,8 +42,8 @@ select_sdmVariables <- function(pred_vars, maxent_mod, maxVIF){
   
   while(max(usdm::vif(vv)$VIF) >= maxVIF){
     vv <- remove_singleVariables(pred_vars = vv,
-                              maxent_mod = maxent_mod,
-                              th = maxVIF)
+                                 maxent_mod = maxent_mod,
+                                 th = maxVIF)
   }
   
   return(vv)
