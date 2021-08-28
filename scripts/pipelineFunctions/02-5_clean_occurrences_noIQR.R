@@ -46,6 +46,7 @@ coord_clean_noOutliers <- function(species, df,
     #cc_outl(lon = "decimalLongitude", lat = "decimalLatitude",
     #        value = "clean", species = "validName", method = "distance",
     #        tdi = 5000) 
+  
   cs2 <- 
     tryCatch(cc_sea(x = cs2, lon = "decimalLongitude", lat = "decimalLatitude", 
                     value = "clean"),
