@@ -61,7 +61,9 @@ save_SDM_results <- function(ENMeval_output, AUCmin, resultDir,
         na.omit()
       Sp <- sum(1-abs$pa) / nrow(abs)
       
-      TSS <- (Se + (0.25*Sp)) - 1
+      # half weights specificity since we don't have true absences
+      # could quarter or full weight as one sees fit
+      TSS <- (Se + (0.5*Sp)) - 1
     }
     
     
@@ -136,7 +138,9 @@ save_SDM_results <- function(ENMeval_output, AUCmin, resultDir,
         na.omit()
       Sp <- sum(1-abs$pa) / nrow(abs)
       
-      TSS <- (Se + (0.25*Sp)) - 1
+      # half weights specificity since we don't have true absences
+      # could quarter or full weight as one sees fit
+      TSS <- (Se + (0.5*Sp)) - 1
     }
     
     
